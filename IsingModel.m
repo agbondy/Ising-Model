@@ -77,11 +77,11 @@ function stats = IsingModel(varargin)
             goodcov=0;                
             while ~goodcov
                 try
-                    cov=normrnd(0.05,0.1,state.ncells,state.ncells);
+                    myCov=normrnd(0.05,0.1,state.ncells,state.ncells);
                     mnvar=normrnd(0.5,0.1,1,state.ncells);               
-                    cov(logical(eye(state.ncells)))=mnvar;
-                    cov=nearestSPD(cov);
-                    spikes=sampleDichGauss01(mnvar,cov,state.nbins);
+                    myCov(logical(eye(state.ncells)))=mnvar;
+                    myCov=nearestSPD(myCov);
+                    spikes=sampleDichGauss01(mnvar,myCov,state.nbins);
                     goodcov=1;
                 catch
                 end
@@ -114,19 +114,24 @@ function stats = IsingModel(varargin)
     S1 = -sum(p1.*log(p1)); % entropy of the independent model
     logL1 = sum(state.freq.*log(p1)); % log likelihood of the data under the independent model
     %% fit the Ising model
-    %J_0=(spikes'*spikes)./size(spikes,1);
-    %J_0(find(eye(ncells)))=empirical_p;
-    J_0=eye(state.ncells); % initializing w/ an identity matrix seems to work best
+    J_0=cov(spikes);
+    %J_0=eye(state.ncells); % initializing w/ an identity matrix seems to work best
     fprintf('Fitting Ising model.\n');tic;
-    options=optimoptions(@fminunc,'TolFun',10^-4,'Display','off','TolX',10^-4);
+    options=optimset('TolFun',10^-7,'Display','off','TolX',10^-7,'MaxFunEvals',10^7,'MaxIter',10^7);    
+    if any(strncmpi(toolboxes,'Opt',3))
+        optimfun=@fminunc;
+        warning('off','optim:fminunc:SwitchingMethod');
+    else
+        optimfun=@fminsearch;
+    end
     if state.display
         figure;hold on;
     end    
     for i=nstates:-1:1 
         state.statemats(:,:,i)=state.allW(i,:)'*state.allW(i,:);
     end
-    state.zrdiag=repmat(~eye(state.ncells),1,1,nstates);        
-    [J,~,~,output] = fminunc(@IsingObjective,J_0(:),options); % find the J that maximizes the log likelihood of the Ising model
+    state.zrdiag=repmat(~eye(state.ncells),[1,1,nstates]);        
+    [J,~,~,output] = optimfun(@IsingObjective,J_0(:),options); % find the J that maximizes the log likelihood of the Ising model
     %% evaluate the Ising model
     [neglogL2,p2] = IsingObjective(J(:)); 
     logL2=-neglogL2;
@@ -144,7 +149,7 @@ function stats = IsingModel(varargin)
         'logL',[dummy_logL logL1 logL2 logL],'probabilities',[p1(:) p2(:) state.freq(:)],...
         'nmissing',nmissing,'Nc',Nc,'ncells',state.ncells,'correlations',correlations,'nsamples',state.nbins);      
     if state.verbose
-        mssg(0,'Took %s to evaluate function %d times.',timestr(toc),output.funcCount);
+        fprintf('Took %s seconds to evaluate function %d times.\n',myround(toc,3),output.funcCount);
         fprintf('Entropy of empirical distribution is %g.\n',myround(Sn,3));
         fprintf('Entropy of maximum entropy Ising model is %g.\n',myround(S2,3));  
         % entropy figure

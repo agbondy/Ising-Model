@@ -10,6 +10,8 @@ function matchclim(figs,varargin)
         elseif strncmpi(varargin{j},'clim',4)
             j=j+1;
             clim=varargin{j};
+        elseif strncmpi(varargin{j},'tight',5)
+            method='tight';
         end
         j=j+1;
     end  
@@ -19,8 +21,11 @@ function matchclim(figs,varargin)
                 cl=[];
                 for f=1:length(figs)
                    imhs=imhandles(figs(f));
-                   imdata = cat(1,imhs.CData);
+                   imdata = cat(1,get(imhs,'CData'));
                    cl=[cl ; imdata(:)];
+                   if iscell(cl)
+                    cl=[cl{:}];
+                   end
                 end               
             otherwise
                 cl=[];

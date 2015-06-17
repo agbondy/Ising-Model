@@ -21,7 +21,7 @@ clear cell spikes1 spikes2 spikes3
 % Entropy" model (MEM).  Generally, an MEM is the most "unstructured" distribution 
 % over states of a system given certain constraints.
 % The Ising Model is the special case where the system is binary and the only constraints
-% are the pairwise interactions of the system.
+% are the pairwise interactions zof the system.
 %%
 % What do we mean by "states" in the brain?
 % Consider a set of three neurons each of which,
@@ -34,8 +34,9 @@ clear cell spikes1 spikes2 spikes3
 %
 % The number of possible states grows exponentially with population size,
 % and high-order interactions reflecting complex network connectivity can 
-% create highly skewed distributions over these states. For instance, 
-% say neuron 1 only spikes if it receives synchronous input from neurons 2 and 3.
+% create highly nonuniform structure over these states. For instance, 
+% say neuron 1 only spikes if it receives synchronous input from neurons 2
+% and 3.  This will make some states much more likely than others.
 %%
 % So what can the Ising model tell us?  Well, it describes the most unstructed distribution of
 % states if we confine ourselves to only
@@ -51,9 +52,7 @@ clear cell spikes1 spikes2 spikes3
 % For instance, we'd expect that the Ising model might have some trouble explaining the
 % example above, since knowing the correlations between neuron 1 and the
 % other two neurons won't capture its dependence on synchronous input 
-% (although, as we'll see, even these higher-order interactions can be
-% explained relatively well with an Ising Model, which creates interpretive
-% problems.)
+
 %%
 % NB: Ising models should be applied with care.  There are a number of
 % situations where they can lead to seriously misleading conclusions, particularly when
@@ -117,10 +116,11 @@ ylabel('Predicted Probabilities (Independent)');
 xlabel('Empirical probabilities');
 title('Example 1: Independent Model Performance');
 legend(h,{'Independent'});
+drawnow;
 
 %% 
 % This model does pretty well, as you can see.  In fact, it's the 1st order
-% Maximum Entropy Model for our population, as it gives the most
+% MEM for our population, as it gives the most
 % likely distribution of states constrained only on the empirical mean rate
 % of each neuron (i.e. the 1st order statistics).
 
@@ -134,7 +134,7 @@ legend(h,{'Independent'});
 % There's a convenient and fast way to generate sample
 % spike trains that are constrained by whatever pairwise correlations you
 % want but which have *almost* no excess higher order correlations, using a
-% dichotomized multivariate Gaussian distribution (see ref 5).
+% dichotomized multivariate normal distribution (see ref 5).
 %%
 % First, let's make a random covariance matrix, with a diagonal ridge.
 success=false;
@@ -165,7 +165,8 @@ title({'Observed Correlation Matrix' 'of Simulated Spike Trains'});
 subplot(1,3,3);imagesc(corr(spikes2) - Cov2Corr(myCov)); makeCorrelationImage;
 title('Difference');
 set(gcf,'Position',[944 1180 1499 318]);
-matchclim(gcf);
+matchclim(gcf,'tight');
+drawnow;
 %% Independent Model
 % First let's see how well the 1st order MEM does on our new set of spikes
 decspikes=bin2dec(num2str(spikes2));
@@ -186,17 +187,21 @@ ylabel('Predicted Probabilities (Independent)');
 xlabel('Observed Probabilities');
 title('Example 2: Independent Model Performance');
 legend(h,'Independent');
-
+drawnow;
 
 %%
 % The first order model does not do a good job at predicting the state
 % probabilities we observe.  How could it, when our spike trains are not
 % independent?
 %% Pairwise Model
-% OK. Now let's fit a second order (Ising) model to the same set of correlated spikes.
+% OK. Now let's fit a second order MEM (i.e. the Ising Model) to the same set of correlated spikes.
 % In words, this means we'll use only the covariance matrix to constrain the set of probability distributions
 % we'll consider and then we'll pick the one with the most entropy. 
 % I wrote a function "IsingModel" which finds this distribution using gradient descent.  
+% The way this works is it predicts the state probabilities given an Ising
+% model and then tunes the parameter matrix of the Ising Model until the
+% state probabilities predicted have maximum log likelihood given the
+% observed state probabilities.
 % It can be used on any set of spike train data, not just in this
 % tutorial (see the help).
 stats = IsingModel(spikes2,'verbose',true);
@@ -240,6 +245,7 @@ refline(1,0);
 xlabel('Observed Probabilities');
 title('Example 2 Ising Model Performance');
 legend(h,{'Independent','Pairwise'});
+drawnow;
 
 %%
 % OK, so the Ising model does a pretty darn good job at matching the
@@ -282,7 +288,7 @@ ylabel('Cell No');
 xlabel('Time Bin');
 title('Example 3: Spiking Population with Common Input');
 set(gca,'ytick',1:ncells);
-
+drawnow;
 %% 
 % You should be able to see the correlated up and down states clearly.
 
@@ -303,9 +309,9 @@ S_1 = stats.entropy(1); % entropy of the first order model
 S_2 = stats.entropy(2); % entropy of the Ising model
 S_observed = stats.entropy(3); % entropy of the observed distribution
 performance = (S_1 - S_2) / ( S_1 - S_observed);
-
+drawnow;
 %%
-% The Ising model does reasonably well.  Perhaps counterintuitively,
+% The Ising model does EXTREMELY well.  Perhaps counterintuitively,
 % common input generates a correlation structure which can be described
 % extremely well by second order interactions.  Pairwise statistics don't
 % imply pairwise inputs.  This emphasizes that we are very separated from
@@ -325,7 +331,7 @@ ylabel('Cell No');
 xlabel('Time Bin');
 title('Example 3: Ising Model for Spiking Population with Common Input');
 set(gca,'ytick',1:ncells);
-
+drawnow;
 %% 
 %but see that these have the same covariance matrix
 figure;
@@ -340,7 +346,7 @@ imagesc(corr(spikes3)-corr(sample_spikes));makeCorrelationImage;
 title('Difference');
 matchclim(gcf,'clim',[0 0.5]);
 set(gcf,'Position',[944 1180 1499 318]);
-
+drawnow;
 %% Example 4: Higher Order Correlations
 % In this example, we'll create spike trains with third-order structure:
 % i.e. where the probabilities of spiking in one neuron depends on the product of the activity of two other neurons.
@@ -363,7 +369,7 @@ set(gca,'ytick',1:ncells);
 ylabel('Cell No');
 xlabel('Time Bin');
 title('Example 4: Spiking Population with Higher Order Correlations');
-
+drawnow;
 %% Pairwise Model
 % Now let's see how the Ising model does at characterizing the observed distribution of states.
 
@@ -381,10 +387,9 @@ S_1 = stats.entropy(1); % entropy of the first order model
 S_2 = stats.entropy(2); % entropy of the Ising model
 S_observed = stats.entropy(3); % entropy of the observed distribution
 performance = (S_1 - S_2) / ( S_1 - S_observed);
-
+drawnow;
 %%
-% Given the way we constructed the spikes and the scatter plot comparing the probability distributions,
-% are you at all surprised at the performance value?  One counterintuitive
+% Pretty bad.  But BETTER THAN 0% performance. One counterintuitive
 % observation: it's hard to generate third-order correlations without also
 % generating some 2nd order correlations.
 
